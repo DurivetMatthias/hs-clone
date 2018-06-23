@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:v-bind="http://www.w3.org/1999/xhtml" xmlns:v-on="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link href="assets/css/style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+    <div id="app">
+        <div class="hero">{{opponent.health}} + {{opponent.armor}}</div>
+        <div id="opponentHand" class="centerContent hand">
+            <div v-for="card in opponent.hand"
+                 class="card nice" draggable="true"
+                 ondragstart="drag(event)"
+                 v-if="activePlayer===opponent"
+                 v-bind:data-id="card.id">{{card.name}}<br>{{card.cost}}
+            </div>
+        </div>
+        <div id="opponentBoard" class="centerContent board">
+            <div v-for="minion in opponent.board" class="minion nice"
+                 v-on:click="{ minionClick: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===opponent}"
+                 v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===opponent }"
+                 v-bind:class="{ targetable: minion.attackable && opponent.displayTargets }"
+                 v-bind:data-id="minion.id">{{minion.attack}}/{{minion.health}}
+            </div>
+        </div>
+        <div id="board" class="centerContent board">
+            <div v-for="minion in player.board"
+                 class="minion nice"
+                 v-on:click="{minionClick : minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===player }"
+                 v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===player }"
+                 v-bind:class="{ targetable: minion.attackable && player.displayTargets }"
+                 v-bind:data-id="minion.id">{{minion.attack}}/{{minion.health}}
+            </div>
+        </div>
+        <div id="hand" class="centerContent hand">
+            <div v-for="card in player.hand"
+                 class="card nice" draggable="true"
+                 ondragstart="drag(event)"
+                 v-if="activePlayer===player"
+                 v-bind:data-id="card.id">{{card.name}}<br>{{card.cost}}
+            </div>
+        </div>
+        <button v-on:click="endTurn">End Turn</button>
+        <div class="hero">{{player.health}} + {{player.armor}}</div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js" rel="script" type="text/javascript"></script>
+    <script src="assets/js/script.js" rel="script" type="text/javascript"></script>
+</body>
+</html>

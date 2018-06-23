@@ -1,0 +1,51 @@
+.hand{
+    background-color: #AAA;
+    height: 20vh;
+    width: 50vw;
+    margin: 5vh auto auto;
+}
+
+.board{
+    background-color: #333;
+    height: 20vh;
+    width: 90vw;
+    margin: 2vh auto auto;
+}
+
+.centerContent {
+    display: flex;
+    flex-flow: row;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.nice{
+    border-radius: 10px 50px 10px 50px;
+    background-color: #666;
+    display: inline-block;
+    width: 10vh;
+    height: 15vh;
+    text-align: center;
+    line-height: 5vh;
+    font-size: 2vh;
+}
+
+.card{
+    border: double 5px black;
+}
+
+.minion{
+    border: none;
+}
+
+.ready{
+    border: solid 5px greenyellow;
+}
+
+.targetable{
+    border: solid 5px red;
+}
+
+.suppressReady{
+    border: none;
+}
