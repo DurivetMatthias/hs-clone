@@ -6,8 +6,13 @@
     <link href="assets/css/style.css" rel="stylesheet" type="text/css">
 </head>
 <body>
+<svg>
+    <polyline points="20,20 800,200 950,500 0,800 0,0"></polyline>
+</svg>
     <div id="app">
-        <div class="hero">{{opponent.health}} + {{opponent.armor}}</div>
+        <div class="hero"
+             v-bind:class="{ ready: opponent.numberOfAttacks>0&&opponent.attack>0&&activePlayer===opponent&&!activeCard, targetable: targets.includes(opponent) }"
+             v-bind:data-id="opponent.id">health: {{opponent.health}}<br>armor: {{opponent.armor}}<br>attack: {{opponent.attack}}</div>
         <div id="opponentHand" class="centerContent hand">
             <div v-for="card in opponent.hand"
                  class="card nice" draggable="true"
@@ -18,18 +23,14 @@
         </div>
         <div id="opponentBoard" class="centerContent board">
             <div v-for="minion in opponent.board" class="minion nice"
-                 v-on:click="{ minionClick: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===opponent}"
-                 v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===opponent }"
-                 v-bind:class="{ targetable: minion.attackable && opponent.displayTargets }"
+                 v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===opponent&&!activeCard, targetable: targets.includes(minion) }"
                  v-bind:data-id="minion.id">{{minion.attack}}/{{minion.health}}
             </div>
         </div>
+
         <div id="board" class="centerContent board">
-            <div v-for="minion in player.board"
-                 class="minion nice"
-                 v-on:click="{minionClick : minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===player }"
-                 v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===player }"
-                 v-bind:class="{ targetable: minion.attackable && player.displayTargets }"
+            <div v-for="minion in player.board" class="minion nice"
+                 v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===player&&!activeCard, targetable: targets.includes(minion) }"
                  v-bind:data-id="minion.id">{{minion.attack}}/{{minion.health}}
             </div>
         </div>
@@ -42,7 +43,10 @@
             </div>
         </div>
         <button v-on:click="endTurn">End Turn</button>
-        <div class="hero">{{player.health}} + {{player.armor}}</div>
+        <button v-on:click="activeCard=null">UNDO</button>
+        <div class="hero"
+            v-bind:class="{ ready: player.numberOfAttacks>0&&player.attack>0&&activePlayer===player&&!activeCard, targetable: targets.includes(player) }"
+            v-bind:data-id="player.id">health: {{player.health}}<br>armor: {{player.armor}}<br>attack: {{player.attack}}</div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js" rel="script" type="text/javascript"></script>
     <script src="assets/js/script.js" rel="script" type="text/javascript"></script>

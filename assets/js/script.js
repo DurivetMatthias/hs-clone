@@ -1,21 +1,24 @@
-let boards = [];
-let cards = [];
-let globalCardId = 0;
+let globalId = 0;
 let handDiv;
 let boardDiv;
 let opponentHandDiv;
 let opponentBoardDiv;
-let player;
-let opponent;
-let currentAction;
-let currentMinion;
-let activePlayer;
+let app;
+
 let catalog = {
     mindBlast: function () {
         return new Card("mindBlast",
             2,
             function () {
-                opponent.health-=5;
+                app.getNonActivePlayer().health-=5;
+            },
+            "spell");
+    },
+    flameStrike: function() {
+        return new Card("flameStrike",
+            2,
+            function () {
+                app.getNonActivePlayer().board.map(minion => minion.takeDamage(4));
             },
             "spell");
     },
@@ -23,7 +26,7 @@ let catalog = {
         return new Card("whisp",
             0,
             function(){
-                return new Minion(1,1)
+                app.activePlayer.summonMinion(new Minion(1,1, this.id));
             },
             "minion");
     },
@@ -31,10 +34,43 @@ let catalog = {
         return new Card("oracle",
             1,
             function(){
-                return new Minion(2,2)
+                app.activePlayer.summonMinion(new Minion(2,2, this.id));
             },
             "minion");
+    },
+    smite: function () {
+        return new Card("smite",
+            1,
+            function(){
+                app.targetedEffectPlayed(TARGET_OPTIONS.ANY, function (target) {
+                    target.takeDamage(2);
+                })
+            },
+            "spell");
+    },
+    mindControll: function () {
+        return new Card("mind controll",
+            10,
+            function(){
+                app.targetedEffectPlayed(TARGET_OPTIONS.ENEMY_MINION, function (target) {
+                    removeFromArray(app.getNonActivePlayer().board, target);
+                    app.activePlayer.board.push(target);
+                })
+            },
+            "spell");
     }
+};
+
+let TARGET_OPTIONS = {
+    MINION_COMBAT: "MINION_COMBAT",
+    ENEMY_MINION: "ENEMY_MINION",
+    ENEMY_HERO: "ENEMY_HERO",
+    ENEMY: "ENEMY",
+    FRIENDLY_MINION: "FRIENDLY_MINION",
+    FRIENDLY_HERO: "FRIENDLY_HERO",
+    FRIENDLY: "FRIENDLY",
+    ANY: "ANY",
+    ANY_MINION: "ANY_MINION",
 };
 
 HTMLElement.prototype.on = function(event, selector, handler) {
@@ -55,83 +91,140 @@ HTMLElement.prototype.on = function(event, selector, handler) {
     });
 };
 
-function minionAttack(attacker, defender) {
-    defender.health -= attacker.attack;
-    attacker.health -= defender.attack;
+function initDeck(deck) {
+    deck.push(catalog.flameStrike());
+    deck.push(catalog.smite());
+    deck.push(catalog.whisp());
+    deck.push(catalog.oracle());
+    deck.push(catalog.mindControll());
+}
+
+function removeFromArray(a, x) {
+    let i = a.indexOf(x);
+    a.splice(i, 1);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-
-   /*document.documentElement.on('click', '.ready', function (target) {
-       let list = document.getElementsByClassName('ready');
-       for(let i=0;i<list.length;i++){
-           if(list[i]!=target) list[i].classList.add('suppressReady')
-       }
-       currentMinion = target.dataset.id;
-   });
-
-    document.documentElement.on('click', '.targetable', function (target) {
-        target.health -= currentMinion.attack;
-        currentMinion.health -= target.attack;
-    });*/
-
-    player = new Player();
-    activePlayer = player;
-    opponent = new Player();
-    for(let i = 0;i<15;i++){
-        let whispCopy = catalog.whisp();
-        whispCopy.id = globalCardId++;
-        player.deck.push(whispCopy);
-
-        let oC = catalog.oracle();
-        oC.id = globalCardId++;
-        player.deck.push(oC);
-
-        let wc = catalog.whisp();
-        wc.id = globalCardId++;
-        opponent.deck.push(wc);
-
-        let oc = catalog.oracle();
-        oc.id = globalCardId++;
-        opponent.deck.push(oc);
-    }
-    player.drawCard(5);
-    opponent.drawCard(5);
-
-    let app = new Vue({
+    app = new Vue({
         el: '#app',
         data: {
-            player: player,
-            opponent: opponent,
-            activePlayer: activePlayer
+            player: null,
+            opponent: null,
+            activePlayer: null,
+            activeCard: null,
+            targets: [],
         },
         methods: {
             endTurn: function () {
-                if(activePlayer===player) {
-
-                    activePlayer = opponent;
-                    this.activePlayer = opponent;
-                }
-                else {
-                    activePlayer = player;
-                    this.activePlayer = player;
-                }
-                this.activePlayer.board.forEach(function (minion) {
-                    minion.summoningSickness = false;
-                });
+                this.activePlayer = this.getNonActivePlayer();
+                this.activePlayer.board.map(minion => {minion.summoningSickness = false;
+                                                        minion.numberOfAttacks = minion.maxNumberOfAttacks});
             },
-            minionClick: function () {
-                cosnole.log('hi');
+            minionAttack: function (target) {
+                this.activeCard = new TargetObject(TARGET_OPTIONS.MINION_COMBAT, this.activePlayer.getMinion(target.dataset.id));
+                this.targets = this.getNonActivePlayer().board.filter(minion => minion.taunt == true);
+                if(!this.targets.length>0) {
+                    this.targets = this.getNonActivePlayer().board.filter(minion => !minion.stealth);
+                    this.targets.push(this.getNonActivePlayer());
+                }
+            },
+            targetSelected: function (target) {
+                let defender = this.targets.filter( x => x.id == target.dataset.id)[0];
+                switch (this.activeCard.targetType){
+                    case TARGET_OPTIONS.MINION_COMBAT:
+                        defender.takeDamage(this.activeCard.minion.attack);
+                        this.activeCard.minion.takeDamage(defender.attack);
+                        this.activeCard.minion.numberOfAttacks -= 1;
+                        break;
+                    default:
+                        this.activeCard.effect(defender);
+                        break;
+                }
+
+                this.activeCard = null;
+                this.targets = [];
+            },
+            getNonActivePlayer: function () {
+                if (this.activePlayer == this.player) return this.opponent;
+                else return this.player;
+            },
+            targetedEffectPlayed: function (targetOption, effect) {
+                this.activeCard = new TargetObject(targetOption, effect);
+                this.targets = [];
+                function addEnemyMinions() {
+                    app.getNonActivePlayer().board.forEach(minion => app.targets.push(minion));
+                }
+                function addFriendlyMinions() {
+                    app.activePlayer.board.forEach(minion => app.targets.push(minion));
+                }
+                function addEnemyHero() {
+                    app.targets.push(app.getNonActivePlayer());
+                }
+                function addFriendlyHero() {
+                    app.targets.push(app.activePlayer);
+                }
+                switch (targetOption){
+                    case TARGET_OPTIONS.ANY:
+                        addEnemyHero();
+                        addFriendlyHero();
+                        addEnemyMinions();
+                        addFriendlyMinions();
+                        break;
+                    case TARGET_OPTIONS.ENEMY:
+                        addEnemyMinions();
+                        addEnemyHero();
+                        break;
+                    case TARGET_OPTIONS.FRIENDLY:
+                        addFriendlyMinions();
+                        addFriendlyHero();
+                        break;
+                    case TARGET_OPTIONS.ENEMY_MINION:
+                        addEnemyMinions();
+                        break;
+                    case TARGET_OPTIONS.FRIENDLY_MINION:
+                        addFriendlyMinions();
+                        break;
+                    case TARGET_OPTIONS.ANY_MINION:
+                        addFriendlyMinions();
+                        addEnemyMinions();
+                        break;
+                }
             }
+        },
+        beforeMount() {
+            this.player = new Player();
+            this.activePlayer = this.player; //TODO random start
+            this.opponent = new Player();
+            this.player.drawCard(5);//TODO opening mulligan
+            this.opponent.drawCard(5);
         }
+    });
+
+    document.documentElement.on('click', '.ready', function (target) {
+        app.minionAttack(target);
+    });
+
+    document.documentElement.on('click', '.targetable', function (target) {
+        app.targetSelected(target);
     });
 
     handDiv = document.getElementById('hand');
     boardDiv = document.getElementById('board');
     opponentHandDiv = document.getElementById('opponentHand');
     opponentBoardDiv = document.getElementById('opponentBoard');
-    makeDroppable(document.documentElement);//basically drop anywhere but in self TODO undroppable in hand
+    makeDroppable(document.documentElement);
 });
+
+function killMinion(minion) {
+    app.player.board = app.player.board.filter(function (min) {
+        if(min == minion) app.player.deadMinions.push(minion);
+        return min != minion;
+    });
+    app.opponent.board = app.opponent.board.filter(function (min) {
+        if(min == minion) app.opponent.deadMinions.push(minion);
+        return min != minion;
+    });
+}
 
 function makeDroppable(element) {
     element.ondrop = drop;
@@ -155,7 +248,7 @@ function disableDrag(element) {
 }
 
 function allowDrop(ev) {
-    if(!ev.target.classList.contains('card')) ev.preventDefault();
+    if(!ev.target.classList.contains('hand')&&!ev.target.classList.contains('card')) ev.preventDefault();//specify dropable places
 }
 
 function drag(ev) {
@@ -164,17 +257,23 @@ function drag(ev) {
 
 function drop(ev) {
     let id = ev.dataTransfer.getData("id");
-    let card = activePlayer.getCard(id);
-    activePlayer.board.push(card.effect());// if returns minion(multiple TODO)
-    activePlayer.removeCard(id);
+    let card = app.activePlayer.getCard(id);
+    card.effect();
+    app.activePlayer.removeCard(id);
 }
 
 function Player() {
+    this.id = globalId++;
     this.health = 30;
     this.mana = 1;
     this.maxHandSize = 10;
     this.armor = 0;
     this.weapon = null;
+    this.maxNumberOfAttacks = 1;
+    this.numberOfAttacks = 1;
+    this.taunt = false;
+    this.attackable = true;
+    this.targetable = true;
     this.attack = 0;
     this.deck = [];
     this.hand = [];
@@ -182,10 +281,13 @@ function Player() {
     this.deadMinions = [];
     this.playedCards = [];
     this.displayTargets = false;
+    this.takeDamage = function (amount) {
+        this.health -= parseInt(amount);
+        if(this.health<=0) console.log(this, "has lost");
+    };
     this.drawCard = function (amount) {
         for(let i=0;i<amount;i++){
             let card = this.deck.pop();
-            //addCardDiv(card);
             this.hand.push(card);
         }
     };
@@ -201,6 +303,22 @@ function Player() {
             return card.id != id;
         });
     };
+    this.getMinion = function (id) {
+        let result;
+        this.board.forEach(function (minion) {
+            if(parseInt(minion.id) == id) result = minion;
+        });
+        return result;
+    };
+    this.removeMinion = function (id) {
+        this.board = this.board.filter(function (minion) {
+            return minion.id != id;
+        });
+    };
+    this.summonMinion = function (minion) {
+        this.board.push(minion);
+    };
+    initDeck(this.deck);
     return this;
 }
 
@@ -209,14 +327,30 @@ function Card(name, cost, effect, type) {
     this.cost = cost;
     this.effect = effect;
     this.type = type;
+    this.id = globalId++;
 }
 
-function Minion(attack, health) {
+function Minion(attack, health, id) {
     this.attack = attack;
     this.health = health;
+    this.maxNumberOfAttacks = 1;
     this.numberOfAttacks = 1;
     this.summoningSickness = true;
+    this.taunt = false;
+    this.stealth = false;
     this.attackable = true;
     this.targetable = true;
+    this.id = id;
+    this.takeDamage = function (amount) {
+        this.health -= amount;
+        if(this.health<=0) killMinion(this);
+    };
+    return this;
+}
+
+function TargetObject(targetType, secondArgument) {
+    this.targetType = targetType;
+    if(targetType==TARGET_OPTIONS.MINION_COMBAT) this.minion = secondArgument;
+    else this.effect = secondArgument;
     return this;
 }

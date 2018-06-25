@@ -1,13 +1,17 @@
+:root{
+    --boardHeight: 15vh;
+    --handHeight: 15vh;
+}
 .hand{
     background-color: #AAA;
-    height: 20vh;
+    height: var(--handHeight);
     width: 50vw;
     margin: 5vh auto auto;
 }
 
 .board{
     background-color: #333;
-    height: 20vh;
+    height: var(--boardHeight);
     width: 90vw;
     margin: 2vh auto auto;
 }
@@ -24,7 +28,7 @@
     background-color: #666;
     display: inline-block;
     width: 10vh;
-    height: 15vh;
+    height: calc(var(--handHeight) - 5vh);
     text-align: center;
     line-height: 5vh;
     font-size: 2vh;
@@ -48,4 +52,11 @@
 
 .suppressReady{
     border: none;
+}
+
+polyline {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke: rgba(0,0,0,0.5);
 }
