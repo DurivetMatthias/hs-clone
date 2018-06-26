@@ -6,13 +6,15 @@
     <link href="assets/css/style.css" rel="stylesheet" type="text/css">
 </head>
 <body>
+<!--
 <svg>
     <polyline points="20,20 800,200 950,500 0,800 0,0"></polyline>
 </svg>
+-->
     <div id="app">
         <div class="hero"
              v-bind:class="{ ready: opponent.numberOfAttacks>0&&opponent.attack>0&&activePlayer===opponent&&!activeCard, targetable: targets.includes(opponent) }"
-             v-bind:data-id="opponent.id">health: {{opponent.health}}<br>armor: {{opponent.armor}}<br>attack: {{opponent.attack}}</div>
+             v-bind:data-id="opponent.id">health: {{opponent.health}}<br>armor: {{opponent.armor}}<br>attack: {{opponent.attack}}<br>mana: {{opponent.mana}}</div>
         <div id="opponentHand" class="centerContent hand">
             <div v-for="card in opponent.hand"
                  class="card nice" draggable="true"
@@ -46,7 +48,7 @@
         <button v-on:click="activeCard=null">UNDO</button>
         <div class="hero"
             v-bind:class="{ ready: player.numberOfAttacks>0&&player.attack>0&&activePlayer===player&&!activeCard, targetable: targets.includes(player) }"
-            v-bind:data-id="player.id">health: {{player.health}}<br>armor: {{player.armor}}<br>attack: {{player.attack}}</div>
+            v-bind:data-id="player.id">health: {{player.health}}<br>armor: {{player.armor}}<br>attack: {{player.attack}}<br>mana: {{player.mana}}</div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js" rel="script" type="text/javascript"></script>
     <script src="assets/js/script.js" rel="script" type="text/javascript"></script>

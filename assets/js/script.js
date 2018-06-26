@@ -34,7 +34,11 @@ let catalog = {
         return new Card("oracle",
             1,
             function(){
-                app.activePlayer.summonMinion(new Minion(2,2, this.id));
+                app.activePlayer.summonMinion(new Minion(1,1, this.id,{deathrattle: function (self) {
+                    let allCards = Object.values(catalog);
+                    let randomCard = allCards[Math.floor((Math.random() * allCards.length))]();
+                    self.getOwner().hand.push(randomCard);
+                }}));
             },
             "minion");
     },
@@ -44,7 +48,7 @@ let catalog = {
             function(){
                 app.targetedEffectPlayed(TARGET_OPTIONS.ANY, function (target) {
                     target.takeDamage(2);
-                })
+                }, this)
             },
             "spell");
     },
@@ -55,11 +59,32 @@ let catalog = {
                 app.targetedEffectPlayed(TARGET_OPTIONS.ENEMY_MINION, function (target) {
                     removeFromArray(app.getNonActivePlayer().board, target);
                     app.activePlayer.board.push(target);
-                })
+                }, this);
             },
             "spell");
+    },
+    lootHoarder: function () {
+        let card = new Card("loot hoarder",
+            2,
+            function () {
+                app.activePlayer.summonMinion(new Minion(2,1, this.id, {deathrattle: function (self) {
+                    self.getOwner().drawCard(1);
+                }}));
+            },
+            "minion");
+        return card;
     }
 };
+
+function initDeck(deck) {
+    for(let i=0;i<6;i++){
+        deck.push(catalog.lootHoarder());
+        deck.push(catalog.flameStrike());
+        deck.push(catalog.whisp());
+        deck.push(catalog.oracle());
+        deck.push(catalog.smite());
+    }
+}
 
 let TARGET_OPTIONS = {
     MINION_COMBAT: "MINION_COMBAT",
@@ -91,14 +116,6 @@ HTMLElement.prototype.on = function(event, selector, handler) {
     });
 };
 
-function initDeck(deck) {
-    deck.push(catalog.flameStrike());
-    deck.push(catalog.smite());
-    deck.push(catalog.whisp());
-    deck.push(catalog.oracle());
-    deck.push(catalog.mindControll());
-}
-
 function removeFromArray(a, x) {
     let i = a.indexOf(x);
     a.splice(i, 1);
@@ -117,8 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
         methods: {
             endTurn: function () {
                 this.activePlayer = this.getNonActivePlayer();
-                this.activePlayer.board.map(minion => {minion.summoningSickness = false;
-                                                        minion.numberOfAttacks = minion.maxNumberOfAttacks});
+                this.activePlayer.onTurnStart();
             },
             minionAttack: function (target) {
                 this.activeCard = new TargetObject(TARGET_OPTIONS.MINION_COMBAT, this.activePlayer.getMinion(target.dataset.id));
@@ -148,8 +164,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (this.activePlayer == this.player) return this.opponent;
                 else return this.player;
             },
-            targetedEffectPlayed: function (targetOption, effect) {
-                this.activeCard = new TargetObject(targetOption, effect);
+            targetedEffectPlayed: function (targetOption, effect, card) {
                 this.targets = [];
                 function addEnemyMinions() {
                     app.getNonActivePlayer().board.forEach(minion => app.targets.push(minion));
@@ -189,6 +204,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         addEnemyMinions();
                         break;
                 }
+                if(app.targets.length>0){
+                    this.activeCard = new TargetObject(targetOption, effect);
+                }else{
+                    card.unplayable = true;
+                }
             }
         },
         beforeMount() {
@@ -197,6 +217,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.opponent = new Player();
             this.player.drawCard(5);//TODO opening mulligan
             this.opponent.drawCard(5);
+            this.player.onTurnStart();
         }
     });
 
@@ -214,8 +235,8 @@ document.addEventListener('DOMContentLoaded', function () {
     opponentBoardDiv = document.getElementById('opponentBoard');
     makeDroppable(document.documentElement);
 });
-
 function killMinion(minion) {
+    minion.deathrattle();
     app.player.board = app.player.board.filter(function (min) {
         if(min == minion) app.player.deadMinions.push(minion);
         return min != minion;
@@ -258,14 +279,20 @@ function drag(ev) {
 function drop(ev) {
     let id = ev.dataTransfer.getData("id");
     let card = app.activePlayer.getCard(id);
-    card.effect();
-    app.activePlayer.removeCard(id);
+    if(app.activePlayer.mana >= card.cost){
+        card.effect();
+        if(!card.unplayable) { //unlayable gets set in effect
+            app.activePlayer.mana -= card.cost;
+            app.activePlayer.removeCard(id);
+        }
+    }
 }
 
 function Player() {
     this.id = globalId++;
     this.health = 30;
-    this.mana = 1;
+    this.maxMana = 0;
+    this.mana = 0;
     this.maxHandSize = 10;
     this.armor = 0;
     this.weapon = null;
@@ -281,6 +308,16 @@ function Player() {
     this.deadMinions = [];
     this.playedCards = [];
     this.displayTargets = false;
+    this.additionalTurnStartEffects = [];
+    this.onTurnStart = function () {
+        this.board.forEach(minion => {minion.summoningSickness = false;
+            minion.numberOfAttacks = minion.maxNumberOfAttacks});
+        this.drawCard(1);
+        if(this.maxMana<10) this.maxMana++;
+        this.mana = this.maxMana;
+        this.board.forEach(minion => minion.onTurnStart());
+        this.additionalTurnStartEffects.forEach(x => x());
+    };
     this.takeDamage = function (amount) {
         this.health -= parseInt(amount);
         if(this.health<=0) console.log(this, "has lost");
@@ -327,10 +364,12 @@ function Card(name, cost, effect, type) {
     this.cost = cost;
     this.effect = effect;
     this.type = type;
+    this.unplayable = false;
     this.id = globalId++;
 }
 
-function Minion(attack, health, id) {
+function Minion(attack, health, id, options) {
+    let self = this;
     this.attack = attack;
     this.health = health;
     this.maxNumberOfAttacks = 1;
@@ -341,10 +380,34 @@ function Minion(attack, health, id) {
     this.attackable = true;
     this.targetable = true;
     this.id = id;
+    this.turnStartEffects = [];
+    this.getOwner = function () {
+        if(app.player.getMinion(id)) return app.player;
+        else return app.opponent;
+    };
+    this.onTurnStart = function () {
+        this.turnStartEffects.forEach(x => x());
+    };
+    this.additionalDeathrattles = [];
+    this.deathrattle = function () {
+        this.additionalDeathrattles.forEach(x => x(self));
+    };
     this.takeDamage = function (amount) {
         this.health -= amount;
         if(this.health<=0) killMinion(this);
     };
+
+    if(options){
+        Object.keys(options).forEach(function (key) {
+            let value = options[key];
+            if(key === "deathrattle"){
+                self.additionalDeathrattles.push(options.deathrattle);
+            }else{
+                this[key] = options[key];
+            }
+        });
+    }
+
     return this;
 }
 

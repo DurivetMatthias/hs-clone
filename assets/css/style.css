@@ -42,6 +42,10 @@
     border: none;
 }
 
+.hero{
+    height: 5vh;
+}
+
 .ready{
     border: solid 5px greenyellow;
 }
