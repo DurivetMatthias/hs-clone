@@ -38,7 +38,7 @@
         </div>
         <div id="hand" class="centerContent hand">
             <div v-for="card in player.hand"
-                 class="card nice" draggable="true"
+                 class="card nice" v-bind:draggable="targets.length===0&&card.cost<=activePlayer.mana"
                  ondragstart="drag(event)"
                  v-if="activePlayer===player"
                  v-bind:data-id="card.id">{{card.name}}<br>{{card.cost}}
