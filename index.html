@@ -16,8 +16,8 @@
              v-bind:class="{ ready: opponent.numberOfAttacks>0&&opponent.attack>0&&activePlayer===opponent&&!activeCard, targetable: targets.includes(opponent) }"
              v-bind:data-id="opponent.id">health: {{opponent.health}}<br>armor: {{opponent.armor}}<br>attack: {{opponent.attack}}<br>mana: {{opponent.mana}}</div>
         <div id="opponentHand" class="centerContent hand">
-            <div v-for="card in opponent.hand"
-                 class="card nice" draggable="true"
+            <div v-for="card in opponent.hand.sort(function(a,b){return a.cost-b.cost;})"
+                 class="card nice" v-bind:draggable="targets.length===0&&card.cost<=opponent.mana"
                  ondragstart="drag(event)"
                  v-if="activePlayer===opponent"
                  v-bind:data-id="card.id">{{card.name}}<br>{{card.cost}}
@@ -26,19 +26,19 @@
         <div id="opponentBoard" class="centerContent board">
             <div v-for="minion in opponent.board" class="minion nice"
                  v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===opponent&&!activeCard, targetable: targets.includes(minion) }"
-                 v-bind:data-id="minion.id">{{minion.attack}}/{{minion.health}}
+                 v-bind:data-id="minion.id">{{minion.name}}<br>{{minion.attack}}/{{minion.health}}
             </div>
         </div>
 
         <div id="board" class="centerContent board">
             <div v-for="minion in player.board" class="minion nice"
                  v-bind:class="{ ready: minion.numberOfAttacks>0&&!minion.summoningSickness&&activePlayer===player&&!activeCard, targetable: targets.includes(minion) }"
-                 v-bind:data-id="minion.id">{{minion.attack}}/{{minion.health}}
+                 v-bind:data-id="minion.id">{{minion.name}}<br>{{minion.attack}}/{{minion.health}}
             </div>
         </div>
-        <div id="hand" class="centerContent hand">
-            <div v-for="card in player.hand"
-                 class="card nice" v-bind:draggable="targets.length===0&&card.cost<=activePlayer.mana"
+        <div id="hand" class="centerContent hand"><!--causes vue warn in console, sort hand on cost -->
+            <div v-for="card in player.hand.sort(function(a,b){return a.cost-b.cost;})"
+                 class="card nice" v-bind:draggable="targets.length===0&&card.cost<=player.mana"
                  ondragstart="drag(event)"
                  v-if="activePlayer===player"
                  v-bind:data-id="card.id">{{card.name}}<br>{{card.cost}}
@@ -49,6 +49,7 @@
         <div class="hero"
             v-bind:class="{ ready: player.numberOfAttacks>0&&player.attack>0&&activePlayer===player&&!activeCard, targetable: targets.includes(player) }"
             v-bind:data-id="player.id">health: {{player.health}}<br>armor: {{player.armor}}<br>attack: {{player.attack}}<br>mana: {{player.mana}}</div>
+        <div id="combatLog"><p v-for="messageObj in combatLog" v-bind:class="messageObj.class">{{messageObj.message}}</p></div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js" rel="script" type="text/javascript"></script>
     <script src="assets/js/script.js" rel="script" type="text/javascript"></script>

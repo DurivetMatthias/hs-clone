@@ -12,7 +12,7 @@
 .board{
     background-color: #333;
     height: var(--boardHeight);
-    width: 90vw;
+    width: 60vw;
     margin: 2vh auto auto;
 }
 
@@ -24,7 +24,7 @@
 }
 
 .nice{
-    border-radius: 10px 50px 10px 50px;
+    /*border-radius: 10px 50px 10px 50px;*/
     background-color: #666;
     display: inline-block;
     width: 10vh;
@@ -58,9 +58,25 @@
     border: none;
 }
 
-polyline {
-    fill: none;
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke: rgba(0,0,0,0.5);
+.playerLog{
+    padding: 1px;
+    border: greenyellow 1px solid;
+}
+.opponentLog{
+    padding: 1px;
+    border: red 1px solid;
+}
+
+#combatLog{
+    position: absolute;
+    left: 2vh;
+    top: 2vh;
+    height:90vh;
+    width: 20vw;
+    background-color: #666666;
+    z-index: 0;
+}
+
+#app{
+    margin-left: 25vw;
 }

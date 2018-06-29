@@ -7,11 +7,19 @@ let app;
 let catalog;
 function initCatalog() {
     if(!catalog) catalog = {
+        coin: function () {
+            return new Card("coin",
+                0,
+                function () {
+                    app.activePlayer.mana+=1;
+                },
+                "spell");
+        },
         pawn: function () {
             return new Card("pawn",
                 1,
                 function () {
-                    let minion = new Minion(1,6, this.id);
+                    let minion = new Minion(1,6, this.id, {maxNumberOfAttacks: 0, name:"pawn"});
                     minion.turnEndEffects = [function () {
                         let defenders = getOpposingId(minion.id);
                         for(let i=0;i<defenders.length;i++){
@@ -20,8 +28,63 @@ function initCatalog() {
                     }];
                     app.activePlayer.summonMinion(minion, this.minionIndex);
                 },
-                "spell");
-        },mindBlast: function () {
+                "minion");
+        },
+        rook: function () {
+            return new Card("rook",
+                3,
+                function () {
+                    let minion = new Minion(2,6, this.id,{maxNumberOfAttacks: 0, name:"rook"});
+                    minion.turnEndEffects = [function () {
+                        let defenders = getOpposingId(minion.id);
+                        for(let i=0;i<defenders.length;i++){
+                            app.getNonActivePlayer().getMinion(defenders[i]).takeDamage(2);
+                        }
+                    }];
+                    app.activePlayer.summonMinion(minion, this.minionIndex);
+                },
+                "minion");
+        },
+        queen: function () {
+            return new Card("queen",
+                7,
+                function () {
+                    let minion = new Minion(4,6, this.id, {maxNumberOfAttacks: 0, name:"queen"});
+                    minion.turnEndEffects = [function () {
+                        let defenders = getOpposingId(minion.id);
+                        for(let i=0;i<defenders.length;i++){
+                            app.getNonActivePlayer().getMinion(defenders[i]).takeDamage(4);
+                        }
+                    }];
+                    app.activePlayer.summonMinion(minion, this.minionIndex);
+                },
+                "minion");
+        },
+        bishop: function () {
+            return new Card("bishop",
+                3,
+                function () {
+                    let card = this;
+                    let minion = new Minion(2,6, this.id, {maxNumberOfAttacks: 0, name:"bishop"});
+                    minion.turnEndEffects = [function () {
+                        let leftMinion = app.activePlayer.board[card.minionIndex-1];
+                        let rightMinion = app.activePlayer.board[card.minionIndex+1];
+                        if(leftMinion) leftMinion.heal(2);
+                        if(rightMinion) rightMinion.heal(2);
+                    }];
+                    app.activePlayer.summonMinion(minion, this.minionIndex);
+                },
+                "minion");
+        },
+        knight: function () {
+            return new Card("knight",
+                4,
+                function () {
+                    app.activePlayer.summonMinion(new Minion(4,3, this.id, {summoningSickness: false, name:"knight"}), this.minionIndex);
+                },
+                "minion");
+        },
+        mindBlast: function () {
         return new Card("mindBlast",
             2,
             function () {
@@ -205,6 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
             activePlayer: null,
             activeCard: null,
             targets: [],
+            combatLog: [],
         },
         methods: {
             endTurn: function () {
@@ -293,8 +357,9 @@ document.addEventListener('DOMContentLoaded', function () {
             this.opponent = new Player();
             initDeck(this.player.deck);
             initDeck(this.opponent.deck);
-            this.player.drawCard(5);//TODO opening mulligan
-            this.opponent.drawCard(5);
+            this.player.drawCard(3);//TODO opening mulligan
+            this.opponent.drawCard(3);
+            this.opponent.hand.push(catalog.coin());
             this.player.onTurnStart();
         }
     });
@@ -308,11 +373,38 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
+function logEvent(message) {
+    let prepend;
+    if(app.activePlayer === app.player){
+        prepend = "playerLog"
+    }else{
+        prepend = "opponentLog"
+    }
+    if(app.combatLog.length>=10){
+        app.combatLog.shift();
+    }
+    app.combatLog.push({class: prepend, message: message});
+}
+
 function initDeck(deck) {
     initCatalog();
-    for(let i=0;i<30;i++){
+    for(let i=0;i<8;i++){
         deck.push(catalog.pawn());
     }
+    for(let i=0;i<2;i++){
+        deck.push(catalog.rook());
+        deck.push(catalog.knight());
+        deck.push(catalog.bishop());
+    }
+    deck.push(catalog.queen());
+    shuffle(deck);
+}
+function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
 }
 
 function killMinion(minion) {
@@ -374,8 +466,8 @@ function drop(ev) {
 
 function Player() {
     this.id = globalId++;
-    this.health = 30;
-    this.maxMana = 10;
+    this.health = 20;
+    this.maxMana = 0;
     this.mana = 0;
     this.maxHandSize = 10;
     this.armor = 0;
@@ -390,6 +482,7 @@ function Player() {
     this.hand = [];
     this.board = [];
     this.deadMinions = [];
+    this.fatigueCounter = 0;
     this.playedCards = [];
     this.displayTargets = false;
     this.additionalTurnStartEffects = [];
@@ -406,13 +499,24 @@ function Player() {
         this.board.forEach(minion => minion.onTurnEnd())
     };
     this.takeDamage = function (amount) {
+        if(this==app.player){
+            logEvent(`player took ${amount} damage`);
+        }else{
+            logEvent(`opponent took ${amount} damage`);
+        }
+
         this.health -= parseInt(amount);
         if(this.health<=0) console.log(this, "has lost");
     };
     this.drawCard = function (amount) {
         for(let i=0;i<amount;i++){
             let card = this.deck.pop();
-            this.hand.push(card);
+            if(card) this.hand.push(card);
+            else {
+                this.fatigueCounter++;
+                this.takeDamage(this.fatigueCounter);
+                logEvent(`fatigue damage ${this.fatigueCounter}`);
+            }
         }
     };
     this.getCard = function (id) {
@@ -461,6 +565,7 @@ function Minion(attack, health, id, options) {
     let self = this;
     this.attack = attack;
     this.health = health;
+    this.maxHealth = health;
     this.maxNumberOfAttacks = 1;
     this.numberOfAttacks = 1;
     this.summoningSickness = true;
@@ -486,14 +591,18 @@ function Minion(attack, health, id, options) {
         this.additionalDeathrattles.forEach(x => x(self));
     };
     this.takeDamage = function (amount) {
+        logEvent(`${self.name} took ${amount} damage`);
         this.health -= amount;
         if(this.health<=0) killMinion(this);
     };
-
+    this.heal = function (amount) {
+        logEvent(`${self.name} healed for ${amount}`);
+        this.health+= amount;
+        if(this.health>this.maxHealth) this.health = this.maxHealth;
+    };
     if(options){
         Object.keys(options).forEach(function (key) {
             let value = options[key];
-            console.log(key, value);
             if(key === "deathrattle"){
                 self.additionalDeathrattles.push(options.deathrattle);
             }else{
