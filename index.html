@@ -46,10 +46,18 @@
         </div>
         <button v-on:click="endTurn">End Turn</button>
         <button v-on:click="activeCard=null">UNDO</button>
+        <button v-on:click="player.heropower" v-if="!player.heropowerUsed&&player===activePlayer">HEROPOWER</button>
+        <button v-on:click="opponent.heropower" v-if="!opponent.heropowerUsed&&opponent===activePlayer">HEROPOWER OPPONENT</button>
         <div class="hero"
             v-bind:class="{ ready: player.numberOfAttacks>0&&player.attack>0&&activePlayer===player&&!activeCard, targetable: targets.includes(player) }"
             v-bind:data-id="player.id">health: {{player.health}}<br>armor: {{player.armor}}<br>attack: {{player.attack}}<br>mana: {{player.mana}}</div>
         <div id="combatLog"><p v-for="messageObj in combatLog" v-bind:class="messageObj.class">{{messageObj.message}}</p></div>
+        <div id="discoverOverlay" v-if="discoverable.length>0">
+            <div class="card discoverCard"
+                 v-for="card in discoverable"
+                 v-bind:data-id="card.id">
+                {{card.name}}<br>{{card.cost}}</div>
+        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js" rel="script" type="text/javascript"></script>
     <script src="assets/js/script.js" rel="script" type="text/javascript"></script>

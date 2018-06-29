@@ -19,8 +19,12 @@
 .centerContent {
     display: flex;
     flex-flow: row;
-    justify-content: space-around;
+    justify-content: center;
     align-items: center;
+}
+
+.centerContent div{
+    margin: 5px;
 }
 
 .nice{
@@ -74,7 +78,15 @@
     height:90vh;
     width: 20vw;
     background-color: #666666;
-    z-index: 0;
+}
+
+#discoverOverlay{
+    position: absolute;
+    left: 25vw;
+    top:25vh;
+    width: 50vw;
+    height: 50vh;
+    background-color: #EEE;
 }
 
 #app{
